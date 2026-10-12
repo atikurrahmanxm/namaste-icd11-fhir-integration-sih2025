@@ -1,0 +1,15 @@
+# Core Web & API Frameworks
+fastapi>=0.110.0
+uvicorn>=0.25.0
+pydantic>=2.0.0
+
+# Clinician UI & Analytics
+streamlit>=1.30.0
+pandas>=2.0.0
+
+# Search & Matching
+rapidfuzz>=3.0.0
+
+# Testing & Client
+pytest>=7.0.0
+httpx>=0.25.0
