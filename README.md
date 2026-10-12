@@ -11,7 +11,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **"Bridging India's Traditional & Modern Healthcare in the Digital Health Ecosystem"**  
-> An enterprise-grade healthcare interoperability microservice prototype developed for **Smart India Hackathon (SIH) 2025** by team members from **Assam Down Town University (ADTU)**.
+> An enterprise-grade healthcare interoperability microservice prototype developed for **Smart India Hackathon (SIH) 2025** by team members from **Assam Down Town University (ADTU)**.  
+>  
+> 📄 **[Read the Full Comprehensive Project Report (Whitepaper)](PROJECT_REPORT.md)**
 
 ---
 
