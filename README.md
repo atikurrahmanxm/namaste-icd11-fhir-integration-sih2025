@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/banner.jpg" alt="AyurCode FHIR Banner" width="100%" style="border-radius: 12px;" />
+</div>
+
 # AyurCode FHIR: Dual Coding Microservice for NAMASTE & ICD-11
 
 [![CI & Quality Assurance](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration-sih2025/actions/workflows/ci.yml/badge.svg)](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration-sih2025/actions)
