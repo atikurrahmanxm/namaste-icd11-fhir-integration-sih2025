@@ -255,18 +255,24 @@ curl -X POST "http://127.0.0.1:8000/api/fhir/document-bundle" \
 
 ---
 
-## 🏆 Smart India Hackathon (SIH) 2025 Recognition
+## 🏆 Smart India Hackathon (SIH) 2025 — Team Project
 
-- **Competition**: Smart India Hackathon 2025
-- **Category**: Digital Healthcare & Traditional Medicine Integration (Ministry of AYUSH)
-- **Milestone**: Qualified and advanced to **Round 2** with architecture proposal and live demonstration.
-- **Team Members (Assam Down Town University)**:
-  - **MD Arif Ul Islam**
-  - **MD Samiur Rahman Tanim**
-  - **Atikur Rahman**
-  - **Farhan Masud**
-  - **S M Zafor Abbasi**
-  - **Soudamoni Pandit**
+- **Hackathon:** Smart India Hackathon 2025
+- **Problem Statement Domain:** Healthcare & Traditional Medicine Interoperability (Ministry of AYUSH & ABDM)
+- **Official Milestone:** Qualified and advanced to **Round 2** with architecture proposal, technical presentation, and working demonstration.
+- **Academic Institution:** Assam Down Town University (ADTU)
+
+### 👥 The 6-Member Engineering Team
+| Team Member | Academic Identifier | Project Focus / Contribution Areas |
+|---|---|---|
+| **Atikur Rahman** | `ADTU/0/2023-27/BTCS/191` | FHIR R4 Synthesizer, Backend Architecture, RapidFuzz Matching |
+| **MD Arif Ul Islam** | `ADTU/0/2023-27/BTCS/167` | Solution Architecture, NAMASTE Terminology Analysis |
+| **MD Samiur Rahman Tanim** | `ADTU/0/2023-27/BTCS/212` | WHO ICD-11 Mapping Research, Semantic Equivalence Framework |
+| **Farhan Masud** | `ADTU/0/2023-27/BTCS/201` | Clinician Workflow Design, Data Modeling & Validation |
+| **S M Zafor Abbasi** | `ADTU/0/2023-27/BTCS/173` | ISO 22600 Security Specs, ABDM Consent Protocol Design |
+| **Soudamoni Pandit** | `ADTU/0/2023-27/BTCS/125` | Quality Assurance, Testing Scenarios, Clinical Documentation |
+
+> *Note: This project was collaboratively researched and formulated for Smart India Hackathon 2025, demonstrating student-led engineering innovation in India's digital health infrastructure.*
 
 ---
 
