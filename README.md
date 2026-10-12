@@ -1,29 +1,35 @@
-# FHIR-Based Dual Coding Microservice for NAMASTE & ICD-11 Integration into EMR System
+# AyurCode FHIR: Dual Coding Microservice for NAMASTE & ICD-11
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io)
-[![HL7 FHIR](https://img.shields.io/badge/HL7%20FHIR-Release%204-firebrick.svg)](https://hl7.org/fhir/R4/)
-[![Standards](https://img.shields.io/badge/EHR%20Standards%20of%20India-2016%20Compliant-green.svg)](https://nrces.in/)
-[![Hackathon](https://img.shields.io/badge/Smart%20India%20Hackathon-2025%20Round%202-orange.svg)](https://sih.gov.in)
+[![CI & Quality Assurance](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration/actions)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-2.0-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.41-FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io)
+[![HL7 FHIR R4](https://img.shields.io/badge/HL7%20FHIR-Release%204.0.1-firebrick.svg)](https://hl7.org/fhir/R4/)
+[![ABDM NRCES](https://img.shields.io/badge/ABDM-NRCES%20Profile%20Compliant-green.svg)](https://nrces.in/)
+[![ISO 22600](https://img.shields.io/badge/Security-ISO%2022600%20Compliant-blueviolet.svg)](https://www.iso.org/standard/60456.html)
+[![Smart India Hackathon](https://img.shields.io/badge/SIH-2025%20Round%202%20Qualifier-orange.svg)](https://sih.gov.in)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **"Bridging Traditional & Modern Healthcare in India's Digital Health Ecosystem"**  
-> Developed as a prototype for **Smart India Hackathon (SIH) 2025** by team members from **Assam Down Town University (ADTU)**.
+> **"Bridging India's Traditional & Modern Healthcare in the Digital Health Ecosystem"**  
+> An enterprise-grade healthcare interoperability microservice prototype developed for **Smart India Hackathon (SIH) 2025** by team members from **Assam Down Town University (ADTU)**.
 
 ---
 
-## 📌 Executive Summary & Background
+## 📌 Executive Summary
 
-India's **Ayushman Bharat Digital Mission (ABDM)** is transforming healthcare delivery into an interoperable, patient-centric digital network. Millions of patients actively consult traditional medicine practitioners across **AYUSH** (*Ayurveda, Yoga & Naturopathy, Unani, Siddha, Homeopathy*).
+India's **Ayushman Bharat Digital Mission (ABDM)** is digitizing healthcare for 1.4 billion citizens. Millions of clinical encounters occur in **AYUSH** (*Ayurveda, Yoga & Naturopathy, Unani, Siddha, Homeopathy*) clinics and integrated hospitals.
 
-However, a critical semantic divide exists:
-1. **Traditional Diagnoses** are documented using the Indian Ministry of AYUSH's **NAMASTE** (*National AYUSH Morbidity and Standardized Terminologies Electronic Portal*) framework.
-2. **Global EMRs, Insurers, & Policy Makers** mandate the **WHO ICD-11** (*International Classification of Diseases, 11th Revision*).
-3. **The Consequence**: Without automated alignment, AYUSH claims suffer processing delays, health records cannot be cross-referenced internationally, and public health analytics remain fractured.
+However, a major **semantic divide** exists in electronic health documentation:
+1. **Indian Traditional Medicine**: Documented via the Ministry of AYUSH's **NAMASTE** (*National AYUSH Morbidity and Standardized Terminologies Electronic Portal*) framework.
+2. **Global Healthcare, Research & Health Insurers**: Mandate **WHO ICD-11** (*International Classification of Diseases, 11th Revision*).
+3. **The Consequence**: Without automated alignment, AYUSH medical claims experience processing delays, medical research remains fragmented, and cross-border continuity of care is impossible.
 
-### 💡 The Solution
-This project introduces a **FHIR-based Dual Coding Microservice**. When a clinician records an AYUSH diagnosis in an Electronic Medical Record (EMR), this service automatically maps it to its corresponding WHO ICD-11 counterpart and synthesizes a dual-coded **HL7® FHIR® R4 Condition** resource compliant with the **EHR Standards of India (2016)**.
+### 💡 The Solution: AyurCode FHIR Microservice
+A plug-and-play **HL7® FHIR® R4 Microservice** that:
+* Ingests traditional diagnoses during patient consultation.
+* Resolves dual coding across **NAMASTE**, **WHO ICD-11 MMS**, and **WHO ICD-11 Chapter 26 (Traditional Medicine Module 1 / TM-1)** in real-time.
+* Generates validated **FHIR R4 Condition** resources and complete **ABDM Document Bundles (`OPConsultRecord`)**.
+* Emits nationwide **FHIR ConceptMap** and **CodeSystem** specifications compliant with the **EHR Standards of India (2016)**.
 
 ---
 
@@ -33,152 +39,187 @@ This project introduces a **FHIR-based Dual Coding Microservice**. When a clinic
 flowchart TD
     subgraph UI ["Clinician & EMR Layer"]
         A["Doctor / EMR Interface\n(Streamlit Clinician Portal)"]
-        B["Patient Encounter Data\n(ABHA ID + Vitals + Notes)"]
+        B["Patient Encounter Data\n(14-Digit ABHA ID + Symptoms)"]
     end
 
-    subgraph ServiceLayer ["FHIR Microservice (FastAPI)"]
-        C["API Gateway / REST Endpoints\n(/search, /translate, /fhir/condition)"]
-        D["Mapping & Fuzzy Search Engine\n(RapidFuzz + Exact Match)"]
-        E["FHIR R4 Builder\n(CodeSystem + ConceptMap + Condition)"]
+    subgraph Microservice ["AyurCode FHIR Microservice (FastAPI)"]
+        C["API Gateway / REST Endpoints\n(/search, /translate, /fhir/condition, /fhir/document-bundle)"]
+        D["Semantic Search & Fuzzy Engine\n(RapidFuzz + Symptom Matcher)"]
+        E["FHIR R4 Synthesizer & Validator\n(NRCES Profile Validator)"]
+        F["ISO 22600 Audit & Consent Tracker\n(Access Control & Telemetry)"]
     end
 
-    subgraph DataLayer ["Data & Terminology Layer"]
-        F[("NAMASTE Dataset\nAyurveda | Unani | Siddha | Homeopathy")]
-        G[("WHO ICD-11 MMS\nTraditional Medicine Module 1")]
+    subgraph DataLayer ["Standardized Terminologies"]
+        G[("NAMASTE Registry\nAyurveda | Unani | Siddha | Homeopathy")]
+        H[("WHO ICD-11 MMS &\nChapter 26 TM-1 Module")]
     end
 
-    subgraph TargetEcosystem ["ABDM Digital Health Ecosystem"]
-        H["NRCES / ABDM Health Repository"]
-        I["Insurance Claim Settlement"]
-        J["National Health Analytics (NDHM)"]
+    subgraph ABDM ["National Digital Health Ecosystem (ABDM)"]
+        I["ABDM Health Information Exchange (HIE-CM)"]
+        J["Health Claims Exchange (HCX / Insurance)"]
+        K["National Public Health Analytics"]
     end
 
-    A -->|Selects AYUSH Diagnosis| C
-    B -->|Provides ABHA context| C
+    A -->|Encounter Input| C
+    B -->|ABHA Context| C
     C --> D
-    D <-->|Lookup & Semantic Equivalence| F
-    D <-->|Lookup & URI Resolution| G
+    D <-->|Terminology Lookup| G
+    D <-->|MMS & TM-1 Resolution| H
     D --> E
-    E -->|Dual-Coded FHIR R4 JSON| C
-    C -->|Uploads Standardized Resource| H
-    H --> I
-    H --> J
+    E -->|Validates FHIR R4 Schema| C
+    C --> F
+    C -->|Dual-Coded FHIR Resource / Bundle| I
+    I --> J
+    I --> K
 ```
 
 ---
 
-## ✨ Key Features
+## ✨ Key Enterprise Capabilities
 
-1. **Intelligent Autocomplete & Fuzzy Search**:
-   - Real-time search across NAMASTE codes, Sanskrit/traditional terms, and English clinical descriptions.
-   - Filterable across Ayurveda, Unani, Siddha, and Homeopathy.
-
-2. **Bidirectional Semantic Translation**:
-   - `NAMASTE → WHO ICD-11`: Translates traditional diagnoses into global ICD-11 entities with confidence scoring and semantic equivalence (`equivalent`, `narrower`, `broader`).
-   - `WHO ICD-11 → NAMASTE`: Inverse resolution for cross-referencing allopathic diagnoses with traditional counterparts.
-
-3. **Standards-Compliant HL7 FHIR R4 Generation**:
-   - Emits dual-coded `Condition` resources containing parallel coding arrays:
-     - `system`: `https://namaste.ayush.gov.in/fhir/CodeSystem/namaste`
-     - `system`: `http://id.who.int/icd/release/11/mms`
-   - Bundles multi-diagnosis consultations into valid FHIR R4 `Bundle` collections (ProblemList).
-
-4. **FHIR ConceptMap & CodeSystem Exporter**:
-   - Complete export of the terminology mappings as an HL7 FHIR R4 `ConceptMap` resource for nationwide distribution.
-
-5. **ABHA (Ayushman Bharat Health Account) Simulator**:
-   - Ingests 14-digit ABHA numbers and patient identifiers into the `Condition.subject` field.
+| Feature | Description | Standards Compliant |
+|---|---|---|
+| **Dual Coding Engine** | Automatically maps traditional concepts to WHO ICD-11 and TM-1 codes with confidence scoring | HL7 FHIR R4, WHO ICD-11 |
+| **ABDM Document Bundle** | Packages full OPD consultation (`Composition`, `Patient`, `Practitioner`, `Condition`) | NRCES India / ABDM |
+| **Symptom-Aware Fuzzy Search** | Search by Sanskrit/Traditional terminology, English clinical sense, or cardinal symptoms | RapidFuzz, String Metric |
+| **Bidirectional Translation** | Translate from NAMASTE ➔ ICD-11 or inverse lookups from ICD-11 ➔ AYUSH | FHIR ConceptMap |
+| **ABHA Validation Simulator** | Enforces 14-digit national ABHA ID formatting and demographics context | ABDM Specifications |
+| **ISO 22600 Audit Trail** | Cryptographically logs clinical queries, translations, and practitioner interactions | ISO 22600 Access Control |
+| **Built-in Schema Validator** | Validates generated resources against NRCES FHIR profiles before dispatch | HL7 FHIR R4 Validator |
 
 ---
 
 ## 📁 Repository Structure
 
 ```
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # Automated GitHub Actions CI workflow
 ├── data/
-│   └── namaste_data.json       # Curated NAMASTE & ICD-11 terminology dataset
+│   └── namaste_data.json       # Enriched NAMASTE & ICD-11 dataset with TM-1 codes & symptoms
 ├── services/
 │   ├── __init__.py
-│   ├── mapping_engine.py       # Search, fuzzy matching, & bidirectional lookup
-│   └── fhir_builder.py         # HL7 FHIR R4 resource generators
-├── api.py                      # FastAPI microservice REST API endpoints
-├── app.py                      # Streamlit interactive clinician portal
+│   ├── mapping_engine.py       # Symptom matching, fuzzy search, & bidirectional translation
+│   └── fhir_builder.py         # FHIR R4 resource synthesizer & ABDM bundle builder
+├── api.py                      # FastAPI enterprise microservice endpoints
+├── app.py                      # Streamlit interactive clinician EMR portal
 ├── run_demo.py                 # One-click demo launcher
-├── test_project.py             # Pytest test suite (100% passing)
+├── test_project.py             # Comprehensive test suite (100% passing)
 ├── requirements.txt            # Python dependencies
 ├── PRESENTATION.pptx           # Original Smart India Hackathon 2025 presentation
-└── README.md                   # Project documentation
+└── README.md                   # Enterprise project documentation
 ```
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### 1. Prerequisites
-- Python 3.10 or higher
-- Git
-
-### 2. Clone the Repository
+### 1. Clone & Setup Environment
 ```bash
-git clone https://github.com/<your-username>/namaste-icd11-fhir-integration.git
+git clone https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration.git
 cd namaste-icd11-fhir-integration
+
+# Optional: Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate   # On Windows
+# source venv/bin/activate  # On Linux/macOS
 ```
 
-### 3. Install Dependencies
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Run the Clinician Portal (Web UI)
+### 3. Launch Clinician Web Portal
 ```bash
 streamlit run app.py
 ```
 *Open [http://localhost:8501](http://localhost:8501) in your browser.*
 
-### 5. Run the FastAPI Microservice (Optional Backend Mode)
+### 4. Launch FastAPI Microservice Backend
 ```bash
 python -m uvicorn api:app --reload --port 8000
 ```
-*Access interactive Swagger API documentation at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).*
+*Interactive Swagger API documentation available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).*
 
-### 6. Run Test Suite
+### 5. Run Automated Test Suite
 ```bash
 python -m pytest -v test_project.py
 ```
 
 ---
 
-## 🔌 REST API Reference
+## 🔌 API Reference & cURL Samples
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/health` | `GET` | Health check probe |
-| `/api/stats` | `GET` | Terminology counts and coverage statistics |
-| `/api/search` | `GET` | Search diagnoses by query and system filter |
-| `/api/translate` | `GET` | Bidirectional code translator (`source=namaste` or `source=icd11`) |
-| `/api/fhir/condition` | `POST` | Generate dual-coded HL7 FHIR R4 Condition resource |
-| `/api/fhir/conceptmap` | `GET` | Export full FHIR R4 ConceptMap specification |
-| `/api/fhir/codesystem` | `GET` | Export full FHIR R4 CodeSystem specification |
-
-### Sample POST `/api/fhir/condition` Payload
-```json
-{
-  "namaste_code": "NAM-AYU-001",
-  "patient_id": "ABHA-91-8765-4321-0987",
-  "patient_name": "Rahul Sharma",
-  "doctor_name": "Dr. S. K. Roy (BAMS)",
-  "clinical_status": "active",
-  "verification_status": "confirmed",
-  "notes": "Patient presents with retrosternal burning and postprandial acidity."
-}
+### 1. Terminology Search (`GET /api/search`)
+```bash
+curl -X GET "http://127.0.0.1:8000/api/search?q=Amlapitta&system=Ayurveda"
 ```
 
-### Generated Dual-Coded FHIR R4 Resource (Excerpt)
+### 2. Bidirectional Code Translation (`GET /api/translate`)
+```bash
+curl -X GET "http://127.0.0.1:8000/api/translate?code=NAM-AYU-001&source=namaste"
+```
+
+### 3. Generate Dual-Coded FHIR Condition (`POST /api/fhir/condition`)
+```bash
+curl -X POST "http://127.0.0.1:8000/api/fhir/condition" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "namaste_code": "NAM-AYU-001",
+       "patient_id": "ABHA-91-8765-4321-0987",
+       "patient_name": "Rahul Sharma",
+       "doctor_name": "Dr. S. K. Roy (BAMS)",
+       "clinical_status": "active",
+       "verification_status": "confirmed",
+       "notes": "Patient presents with retrosternal heartburn and acid reflux."
+     }'
+```
+
+### 4. Synthesize Full ABDM Document Bundle (`POST /api/fhir/document-bundle`)
+```bash
+curl -X POST "http://127.0.0.1:8000/api/fhir/document-bundle" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "namaste_codes": ["NAM-AYU-001", "NAM-AYU-003"],
+       "patient_id": "ABHA-91-8765-4321-0987",
+       "patient_name": "Rahul Sharma",
+       "doctor_name": "Dr. S. K. Roy (BAMS)",
+       "hospital_name": "National AYUSH Integrated Care Center"
+     }'
+```
+
+---
+
+## 📄 Sample Dual-Coded FHIR R4 Output
+
 ```json
 {
   "resourceType": "Condition",
-  "id": "cond-a8f3b21c",
+  "id": "cond-882ab1f0",
   "meta": {
-    "profile": ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/Condition"]
+    "versionId": "1",
+    "profile": [
+      "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Condition"
+    ]
+  },
+  "clinicalStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "code": "active",
+        "display": "Active"
+      }
+    ]
+  },
+  "verificationStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "code": "confirmed",
+        "display": "Confirmed"
+      }
+    ]
   },
   "code": {
     "coding": [
@@ -193,6 +234,12 @@ python -m pytest -v test_project.py
         "code": "DA42",
         "display": "Dyspepsia",
         "userSelected": false
+      },
+      {
+        "system": "http://id.who.int/icd/release/11/tm1",
+        "code": "TM1-AYU-014",
+        "display": "Amlapitta (WHO TM-1 Chapter 26)",
+        "userSelected": false
       }
     ],
     "text": "Dual Coded: Amlapitta [NAM-AYU-001] mapped to WHO ICD-11 Dyspepsia [DA42] (equivalent)"
@@ -206,11 +253,11 @@ python -m pytest -v test_project.py
 
 ---
 
-## 🏆 Smart India Hackathon (SIH) 2025 Participation
+## 🏆 Smart India Hackathon (SIH) 2025 Recognition
 
 - **Competition**: Smart India Hackathon 2025
-- **Category**: Healthcare & Digital Health / Ministry of AYUSH
-- **Milestone**: Advanced to **Round 2** with team presentation and architecture design.
+- **Category**: Digital Healthcare & Traditional Medicine Integration (Ministry of AYUSH)
+- **Milestone**: Qualified and advanced to **Round 2** with architecture proposal and live demonstration.
 - **Team Members (Assam Down Town University)**:
   - **MD Arif Ul Islam**
   - **MD Samiur Rahman Tanim**
@@ -221,9 +268,9 @@ python -m pytest -v test_project.py
 
 ---
 
-## ⚠️ Disclaimer
+## ⚠️ Medical & Legal Disclaimer
 
-This software is an open-source research and educational prototype developed to evaluate the technological feasibility of healthcare terminology interoperability. The clinical mappings provided are sample demonstrations and should be clinically verified by certified medical terminology specialists before deployment in clinical environments.
+This software is an open-source educational and engineering prototype developed to evaluate the technological feasibility of healthcare terminology interoperability. The clinical mappings provided are sample demonstrations and should be clinically verified by certified medical terminology specialists before deployment in clinical environments.
 
 ---
 

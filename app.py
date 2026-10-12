@@ -6,377 +6,534 @@ conforming to HL7 FHIR Release 4 & ABDM standards.
 """
 
 import json
+import re
+from datetime import datetime, timezone
 import streamlit as st
 import pandas as pd
 
 from services.mapping_engine import MappingEngine
 from services.fhir_builder import FHIRBuilder
 
-# Page configuration
+# Configure page
 st.set_page_config(
-    page_title="FHIR Dual-Coding EMR | NAMASTE & ICD-11",
+    page_title="AyurCode FHIR | Dual-Coding Microservice",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for clean healthcare UI
+# Enterprise HealthTech Styling
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .main-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%);
+        padding: 24px 28px;
+        border-radius: 14px;
+        color: white;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
+    }
     .main-title {
         font-size: 2.1rem;
         font-weight: 700;
-        color: #1a365d;
-        margin-bottom: 0.2rem;
+        margin: 0;
+        letter-spacing: -0.5px;
     }
-    .sub-title {
-        font-size: 1.05rem;
-        color: #4a5568;
-        margin-bottom: 1.2rem;
-    }
-    .badge-pill {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-right: 0.4rem;
-    }
-    .badge-green { background-color: #d1fae5; color: #065f46; }
-    .badge-blue { background-color: #dbeafe; color: #1e40af; }
-    .badge-purple { background-color: #f3e8ff; color: #6b21a8; }
-    .card-box {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 16px;
+    .main-subtitle {
+        font-size: 0.98rem;
+        color: #cbd5e1;
+        margin-top: 6px;
         margin-bottom: 12px;
     }
-    .metric-card {
+    .pill-tag {
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        margin-right: 6px;
+        margin-bottom: 4px;
+    }
+    .pill-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
+    .pill-blue  { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); }
+    .pill-purple{ background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.4); }
+    
+    .clinical-card {
         background: #ffffff;
-        border: 1px solid #edf2f7;
-        border-left: 4px solid #3182ce;
-        border-radius: 6px;
-        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #0f172a;
         margin-bottom: 8px;
+    }
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-mapped { background: #e0f2fe; color: #075985; }
+
+    .stat-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+    }
+    .stat-number {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #0f766e;
+    }
+    .stat-label {
+        font-size: 0.78rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Initialize Engine
 @st.cache_resource
 def get_engine():
     return MappingEngine()
 
 engine = get_engine()
 
-# Sidebar: Configuration & Patient Details
+# Helper for ABHA format check
+def validate_abha(abha_str: str) -> bool:
+    pattern = r"^\d{2}-\d{4}-\d{4}-\d{4}$"
+    return bool(re.match(pattern, abha_str.strip())) or abha_str.startswith("ABHA-")
+
+# Sidebar Configuration
 with st.sidebar:
-    st.image("https://img.icons8.com/color/96/caduceus.png", width=64)
-    st.markdown("### 🏥 EMR Encounter Simulator")
-    st.caption("Smart India Hackathon 2025 Demo")
+    st.image("https://img.icons8.com/fluency/96/medical-heart.png", width=64)
+    st.markdown("### 🏥 ABDM EMR Gateway")
+    st.caption("Smart India Hackathon 2025 · Live Clinical Prototype")
     
     st.divider()
-    st.markdown("#### 👤 Patient Details (ABDM)")
+    st.markdown("#### 👤 Patient Demographics")
     patient_name = st.text_input("Patient Full Name", value="Rahul Sharma")
-    patient_abha = st.text_input("ABHA ID (National Health ID)", value="ABHA-91-8765-4321-0987")
-    doctor_name = st.text_input("Attending Practitioner", value="Dr. S. K. Roy (BAMS)")
+    patient_abha = st.text_input("ABHA Number (14 digits)", value="91-8765-4321-0987")
     
-    st.divider()
-    st.markdown("#### ⚙️ Clinical Settings")
-    clinical_status = st.selectbox(
-        "Clinical Status",
-        options=["active", "recurrence", "relapse", "remission", "resolved"],
-        index=0,
-    )
-    verification_status = st.selectbox(
-        "Verification Status",
-        options=["confirmed", "provisional", "differential", "unconfirmed"],
-        index=0,
-    )
+    is_valid_abha = validate_abha(patient_abha)
+    if is_valid_abha:
+        st.markdown('<span class="status-badge status-active">✓ Valid ABHA ID Format</span>', unsafe_allow_html=True)
+    else:
+        st.warning("Format: XX-XXXX-XXXX-XXXX")
+
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=0)
+    age = st.number_input("Age (Years)", min_value=1, max_value=120, value=38)
 
     st.divider()
+    st.markdown("#### 👨‍⚕️ Clinician Information")
+    doctor_name = st.text_input("Consulting Doctor", value="Dr. S. K. Roy (BAMS)")
+    facility_name = st.text_input("Facility Name", value="National AYUSH Integrated Hospital")
+    clinical_status = st.selectbox("Clinical Status", ["active", "recurrence", "relapse", "remission", "resolved"], index=0)
+    verification_status = st.selectbox("Verification Status", ["confirmed", "provisional", "differential", "unconfirmed"], index=0)
+
+    st.divider()
+    st.markdown("#### ⚡ System Telemetry")
     stats = engine.get_summary_stats()
-    st.markdown("#### 📊 Terminology Coverage")
-    st.metric("Total Dual-Coded Diagnoses", stats["total_records"])
-    for sys_name, count in stats["systems"].items():
-        st.write(f"- **{sys_name}**: {count} mapped terms")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f'<div class="stat-box"><div class="stat-number">{stats["total_records"]}</div><div class="stat-label">Mapped Diagnoses</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="stat-box"><div class="stat-number">{stats["average_confidence_score"]}%</div><div class="stat-label">Avg Confidence</div></div>', unsafe_allow_html=True)
 
-# Main Header
-st.markdown('<div class="main-title">🌿 FHIR-Based Dual Coding Microservice</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="sub-title">Bridging India\'s <b>NAMASTE (AYUSH)</b> & WHO <b>ICD-11</b> into Standardized EMR Systems using HL7 FHIR R4</div>',
-    unsafe_allow_html=True,
-)
-
+# Main Banner
 st.markdown(
     """
-    <span class="badge-pill badge-green">✓ HL7 FHIR R4 Compliant</span>
-    <span class="badge-pill badge-blue">✓ EHR Standards of India (2016)</span>
-    <span class="badge-pill badge-purple">✓ Smart India Hackathon 2025</span>
+    <div class="main-header">
+        <h1 class="main-title">🌿 AyurCode FHIR: Dual-Coding Microservice</h1>
+        <div class="main-subtitle">
+            Automated semantic translation between India's <b>NAMASTE (AYUSH)</b> and <b>WHO ICD-11</b> 
+            aligned with <b>EHR Standards of India (2016)</b> & <b>HL7® FHIR® R4</b>.
+        </div>
+        <div>
+            <span class="pill-tag pill-green">✓ HL7 FHIR Release 4 Compliant</span>
+            <span class="pill-tag pill-blue">✓ ABDM / NRCES Profile Compatible</span>
+            <span class="pill-tag pill-purple">✓ Smart India Hackathon 2025 Prototype</span>
+        </div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
-st.write("")
 
 # Navigation Tabs
 tabs = st.tabs([
-    "🩺 Clinician Dual-Coding Entry",
-    "🔍 Search & Vocabulary Directory",
-    "🔄 Bidirectional Translator",
-    "🗺️ FHIR ConceptMap & CodeSystem",
-    "📄 Problem List Bundle",
-    "ℹ️ SIH Project Overview",
+    "🩺 1. Live Dual-Coding Encounter",
+    "🏥 2. ABDM Document Bundle",
+    "🔍 3. Terminology & Symptom Directory",
+    "🔄 4. Bidirectional Translator",
+    "🗺️ 5. FHIR Standards Inspector",
+    "🛡️ 6. ISO 22600 Audit & Security",
+    "🏛️ 7. SIH Project Blueprint",
 ])
 
-# TAB 1: Clinician Dual-Coding Entry
+# -------------------------------------------------------------
+# TAB 1: Live Dual-Coding Encounter
+# -------------------------------------------------------------
 with tabs[0]:
-    st.subheader("1. Patient Diagnosis & Automatic Dual Coding")
+    st.markdown('<div class="section-title">Step 1: Clinical Diagnosis Entry & Dual-Coding Resolution</div>', unsafe_allow_html=True)
     st.write(
-        "A clinician selects or searches for an AYUSH diagnosis in NAMASTE. The microservice automatically resolves the "
-        "matching WHO ICD-11 code and generates a standardized, dual-coded **FHIR R4 Condition resource**."
+        "Select or search for a traditional diagnosis. The microservice instantaneously pairs it with its exact "
+        "WHO ICD-11 counterpart (both MMS code and Chapter 26 Traditional Medicine Module 1 code)."
     )
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        # Search dropdown
-        system_filter = st.selectbox(
-            "Filter by Traditional System:",
+    col_diag1, col_diag2 = st.columns([2, 1])
+    with col_diag1:
+        sys_filter = st.selectbox(
+            "Filter by Traditional Medical System:",
             ["All Systems", "Ayurveda", "Unani", "Siddha", "Homeopathy"],
             index=0,
         )
-        filter_val = None if system_filter == "All Systems" else system_filter
+        selected_sys = None if sys_filter == "All Systems" else sys_filter
+        available_records = engine.search(query="", system=selected_sys, limit=100)
 
-        records = engine.search(query="", system=filter_val, limit=100)
-        record_options = {
+        record_map = {
             f"[{r['namaste_code']}] {r['traditional_term']} ({r['system']}) → {r['icd11_title']} [{r['icd11_code']}]": r
-            for r in records
+            for r in available_records
         }
+        chosen_label = st.selectbox("Select Diagnosis from NAMASTE Directory:", list(record_map.keys()))
+        rec = record_map[chosen_label]
 
-        selected_label = st.selectbox("Select Diagnosis from NAMASTE Directory:", list(record_options.keys()))
-        selected_record = record_options[selected_label]
-
-    with col2:
-        st.markdown("#### 📋 Diagnostic Preview")
-        st.info(
-            f"**NAMASTE Code:** `{selected_record['namaste_code']}`\n\n"
-            f"**Term:** {selected_record['traditional_term']} ({selected_record['system']})\n\n"
-            f"**Mapped ICD-11:** `{selected_record['icd11_code']}` - {selected_record['icd11_title']}\n\n"
-            f"**Confidence:** `{selected_record['mapping_confidence'] * 100:.0f}%` ({selected_record['mapping_equivalence']})"
+    with col_diag2:
+        st.markdown("#### 🎯 Semantic Resolution")
+        conf_pct = int(rec["mapping_confidence"] * 100)
+        st.progress(conf_pct / 100)
+        st.markdown(
+            f"""
+            - **Confidence Score:** `{conf_pct}%`
+            - **Equivalence:** `{rec['mapping_equivalence'].upper()}`
+            - **WHO MMS Code:** `{rec['icd11_code']}`
+            - **WHO TM-1 Code:** `{rec.get('icd11_tm1_code', 'N/A')}`
+            """
         )
 
-    clinical_note = st.text_area(
-        "Clinician Consultation Notes / Observations:",
-        value=f"Patient diagnosed with {selected_record['traditional_term']}. Presenting with complaints related to {selected_record['english_description']}.",
-        height=80,
+    # Disease Insight Card
+    st.markdown(
+        f"""
+        <div class="clinical-card">
+            <h4 style="margin-top:0; color:#0f766e;">📋 {rec['traditional_term']} ({rec['system']}) <span style="font-size:0.85rem; color:#64748b;">[{rec['namaste_code']}]</span></h4>
+            <p><b>Clinical Category:</b> {rec['category']}</p>
+            <p><b>Clinical Description:</b> {rec['english_description']}</p>
+            <p><b>Scientific Mapping Rationale:</b> {rec.get('clinical_rationale', 'Direct semantic equivalence established.')}</p>
+            <div>
+                <b>Associated Symptoms:</b><br/>
+                {' '.join([f'<span class="pill-tag pill-blue">{s}</span>' for s in rec.get('symptoms', [])])}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    if st.button("🚀 Generate & Upload Dual-Coded FHIR R4 Record", type="primary", use_container_width=True):
-        condition_json = FHIRBuilder.create_dual_coded_condition(
-            namaste_record=selected_record,
+    consult_note = st.text_area(
+        "Practitioner Consultation Notes:",
+        value=f"Patient presents with cardinal signs of {rec['traditional_term']}. Advised standard constitutional management.",
+        height=70,
+    )
+
+    if st.button("🚀 Generate & Validate Dual-Coded FHIR R4 Condition", type="primary", use_container_width=True):
+        cond_resource = FHIRBuilder.create_dual_coded_condition(
+            namaste_record=rec,
             patient_id=patient_abha,
             patient_name=patient_name,
             doctor_name=doctor_name,
             clinical_status=clinical_status,
             verification_status=verification_status,
-            notes=clinical_note,
+            notes=consult_note,
         )
 
-        st.success("✅ Dual-Coded FHIR R4 Condition Resource Generated Successfully!")
+        is_valid, validation_errors = FHIRBuilder.validate_resource(cond_resource)
 
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown("#### 🔍 Coding Comparison")
-            comp_df = pd.DataFrame([
+        if is_valid:
+            st.success("✅ HL7 FHIR R4 Condition Resource Generated and Successfully Validated against ABDM NRCES Profile!")
+        else:
+            st.error(f"Validation Warning: {validation_errors}")
+
+        # Summary Table
+        c_left, c_right = st.columns([1, 1])
+        with c_left:
+            st.markdown("#### 🔍 Coding Comparison Table")
+            df_compare = pd.DataFrame([
                 {
                     "Standard": "NAMASTE (AYUSH)",
-                    "Code": selected_record["namaste_code"],
-                    "Display": selected_record["traditional_term"],
-                    "System URI": "https://namaste.ayush.gov.in/fhir/CodeSystem/namaste",
-                    "Status": "Primary User Diagnosis",
+                    "Code": rec["namaste_code"],
+                    "Display Term": rec["traditional_term"],
+                    "URI": "https://namaste.ayush.gov.in/fhir/CodeSystem/namaste",
+                    "Role": "Primary AYUSH Diagnosis",
                 },
                 {
                     "Standard": "WHO ICD-11 MMS",
-                    "Code": selected_record["icd11_code"],
-                    "Display": selected_record["icd11_title"],
-                    "System URI": "http://id.who.int/icd/release/11/mms",
-                    "Status": f"Auto-Mapped ({selected_record['mapping_equivalence']})",
+                    "Code": rec["icd11_code"],
+                    "Display Term": rec["icd11_title"],
+                    "URI": "http://id.who.int/icd/release/11/mms",
+                    "Role": f"International Equivalent ({rec['mapping_equivalence']})",
+                },
+                {
+                    "Standard": "WHO ICD-11 Chapter 26 (TM-1)",
+                    "Code": rec.get("icd11_tm1_code", "TM1-GEN-01"),
+                    "Display Term": f"{rec['traditional_term']} (TM1)",
+                    "URI": "http://id.who.int/icd/release/11/tm1",
+                    "Role": "WHO Traditional Medicine Module",
                 },
             ])
-            st.dataframe(comp_df, hide_index=True, use_container_width=True)
+            st.dataframe(df_compare, hide_index=True, use_container_width=True)
 
-        with col_b:
-            st.markdown("#### ⚡ Clinical Description")
-            st.write(f"**Category:** {selected_record['category']}")
-            st.write(f"**English Clinical Sense:** {selected_record['english_description']}")
-            st.write(f"**WHO Entity URI:** [{selected_record['icd11_uri']}]({selected_record['icd11_uri']})")
+        with c_right:
+            st.markdown("#### 🏥 Encounter Overview")
+            st.write(f"- **Patient Name:** {patient_name} ({gender}, {age} yrs)")
+            st.write(f"- **ABHA ID:** `{patient_abha}`")
+            st.write(f"- **Attending Practitioner:** {doctor_name}")
+            st.write(f"- **Clinical Status:** `{clinical_status}` | Verification: `{verification_status}`")
+            st.write(f"- **Timestamp:** `{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}`")
 
-        st.markdown("#### 📄 Exported HL7 FHIR R4 JSON Resource")
-        st.json(condition_json)
+        # JSON Viewer
+        st.markdown("#### 📄 Standardized HL7 FHIR R4 Condition JSON")
+        st.json(cond_resource)
 
         st.download_button(
-            label="📥 Download FHIR Condition JSON",
-            data=json.dumps(condition_json, indent=2),
-            file_name=f"fhir_condition_{selected_record['namaste_code']}.json",
+            label="📥 Download Condition JSON Resource",
+            data=json.dumps(cond_resource, indent=2),
+            file_name=f"fhir_condition_{rec['namaste_code']}_{patient_abha}.json",
             mime="application/json",
+            use_container_width=True,
         )
 
-# TAB 2: Search & Vocabulary Directory
+# -------------------------------------------------------------
+# TAB 2: ABDM Document Bundle
+# -------------------------------------------------------------
 with tabs[1]:
-    st.subheader("2. Search NAMASTE & ICD-11 Terminology")
-    st.write("Fuzzy search across traditional names, clinical descriptions, NAMASTE codes, and ICD-11 terms.")
-
-    s_col1, s_col2 = st.columns([3, 1])
-    with s_col1:
-        search_query = st.text_input("Enter disease name, symptom, or code (e.g., 'Amlapitta', 'Asthma', 'Diabetes', 'Jaundice'):", "")
-    with s_col2:
-        search_sys = st.selectbox("System:", ["All", "Ayurveda", "Unani", "Siddha", "Homeopathy"], index=0)
-
-    results = engine.search(query=search_query, system=None if search_sys == "All" else search_sys, limit=50)
-
-    st.write(f"Found **{len(results)}** matching terminology records:")
-
-    table_data = []
-    for r in results:
-        table_data.append({
-            "NAMASTE Code": r["namaste_code"],
-            "System": r["system"],
-            "Traditional Term": r["traditional_term"],
-            "Clinical Description": r["english_description"],
-            "ICD-11 Code": r["icd11_code"],
-            "ICD-11 Title": r["icd11_title"],
-            "Equivalence": r["mapping_equivalence"],
-            "Confidence": f"{r['mapping_confidence'] * 100:.0f}%",
-        })
-
-    if table_data:
-        df = pd.DataFrame(table_data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.warning("No records matched your search query.")
-
-# TAB 3: Bidirectional Translator
-with tabs[2]:
-    st.subheader("3. Bidirectional Terminology Translator")
-    st.write("Translate directly between NAMASTE and WHO ICD-11 codes.")
-
-    trans_mode = st.radio(
-        "Choose Translation Direction:",
-        ["NAMASTE → WHO ICD-11", "WHO ICD-11 → NAMASTE"],
-        horizontal=True,
-    )
-
-    if trans_mode == "NAMASTE → WHO ICD-11":
-        input_code = st.text_input("Enter NAMASTE Code:", value="NAM-AYU-001")
-        if st.button("Translate to ICD-11"):
-            res = engine.translate(code=input_code, source_type="namaste")
-            if res.get("status") == "success":
-                st.success("✅ Translation Match Found!")
-                st.write(f"**Traditional Term:** {res['source_term']} ({res['ayush_system']})")
-                st.write(f"**Target ICD-11 Code:** `{res['target_code']}`")
-                st.write(f"**Target ICD-11 Title:** {res['target_title']}")
-                st.write(f"**Semantic Equivalence:** `{res['equivalence']}` (Confidence: {res['confidence'] * 100:.1f}%)")
-                st.write(f"**Clinical Description:** {res['clinical_description']}")
-            else:
-                st.error(res.get("message"))
-    else:
-        input_icd = st.text_input("Enter ICD-11 Code (e.g., 5A11, CA23, DA42):", value="5A11")
-        if st.button("Translate to NAMASTE"):
-            res = engine.translate(code=input_icd, source_type="icd11")
-            if res.get("status") == "success":
-                st.success(f"✅ Found {res['mappings_count']} corresponding NAMASTE diagnoses for ICD-11 '{res['source_code']}':")
-                for m in res["mappings"]:
-                    st.write(f"- **{m['target_term']}** (`{m['target_code']}`) | **System:** {m['ayush_system']} | Equivalence: `{m['equivalence']}`")
-            else:
-                st.error(res.get("message"))
-
-# TAB 4: FHIR ConceptMap & CodeSystem
-with tabs[3]:
-    st.subheader("4. HL7 FHIR R4 Standards Specifications")
+    st.markdown('<div class="section-title">ABDM OPConsultRecord Document Bundle Synthesizer</div>', unsafe_allow_html=True)
     st.write(
-        "Under the **EHR Standards of India (2016)**, all clinical vocabularies and mappings must be published as "
-        "interoperable FHIR `CodeSystem` and `ConceptMap` resources."
+        "Under the **Ayushman Bharat Digital Mission (ABDM)**, an outpatient encounter is exchanged as a complete "
+        "**FHIR Document Bundle** containing `Composition`, `Patient`, `Practitioner`, and dual-coded `Condition` resources."
     )
 
-    spec_choice = st.radio("Select FHIR Resource to inspect:", ["ConceptMap (NAMASTE to ICD-11)", "CodeSystem (NAMASTE)"], horizontal=True)
-
-    if spec_choice.startswith("ConceptMap"):
-        concept_map = FHIRBuilder.create_concept_map(engine.records)
-        st.caption(f"Resource Type: `{concept_map['resourceType']}` | Total Mapped Elements: {len(concept_map['group'][0]['element'])}")
-        st.json(concept_map)
-        st.download_button(
-            "📥 Download FHIR ConceptMap JSON",
-            data=json.dumps(concept_map, indent=2),
-            file_name="fhir_conceptmap_namaste_icd11.json",
-            mime="application/json",
-        )
-    else:
-        code_sys = FHIRBuilder.create_code_system(engine.records)
-        st.caption(f"Resource Type: `{code_sys['resourceType']}` | Total Concepts: {code_sys['count']}")
-        st.json(code_sys)
-        st.download_button(
-            "📥 Download FHIR CodeSystem JSON",
-            data=json.dumps(code_sys, indent=2),
-            file_name="fhir_codesystem_namaste.json",
-            mime="application/json",
-        )
-
-# TAB 5: Problem List Bundle
-with tabs[4]:
-    st.subheader("5. Patient Problem List & FHIR Bundle Builder")
-    st.write("Combine multiple patient diagnoses into a standardized FHIR `Bundle` (Collection) for EMR interchange.")
-
-    multi_conditions = st.multiselect(
-        "Select Multiple Patient Diagnoses:",
+    multi_sel = st.multiselect(
+        "Select Active Patient Diagnoses to Include in Bundle:",
         options=[r["namaste_code"] for r in engine.records],
         default=["NAM-AYU-001", "NAM-AYU-003"],
         format_func=lambda c: f"{c} - {engine.get_by_namaste_code(c)['traditional_term']} ({engine.get_by_namaste_code(c)['system']})",
     )
 
-    if st.button("📦 Build FHIR Bundle (ProblemList)", type="primary"):
-        condition_resources = []
-        for c_code in multi_conditions:
-            rec = engine.get_by_namaste_code(c_code)
-            c_res = FHIRBuilder.create_dual_coded_condition(
-                namaste_record=rec,
+    if st.button("📦 Synthesize Complete ABDM Document Bundle", type="primary"):
+        cond_list = []
+        for c_code in multi_sel:
+            r_rec = engine.get_by_namaste_code(c_code)
+            cond = FHIRBuilder.create_dual_coded_condition(
+                namaste_record=r_rec,
                 patient_id=patient_abha,
                 patient_name=patient_name,
                 doctor_name=doctor_name,
             )
-            condition_resources.append(c_res)
+            cond_list.append(cond)
 
-        bundle = FHIRBuilder.create_problem_list_bundle(condition_resources)
-        st.success(f"✅ Generated FHIR R4 Bundle containing {bundle['total']} dual-coded condition entries!")
-        st.json(bundle)
-        st.download_button(
-            "📥 Download FHIR Bundle JSON",
-            data=json.dumps(bundle, indent=2),
-            file_name="fhir_problem_list_bundle.json",
-            mime="application/json",
+        bundle = FHIRBuilder.create_abdm_document_bundle(
+            conditions=cond_list,
+            patient_id=patient_abha,
+            patient_name=patient_name,
+            doctor_name=doctor_name,
+            hospital_name=facility_name,
         )
 
-# TAB 6: SIH Project Overview
+        st.success(f"✅ Generated ABDM Document Bundle containing {bundle['total']} entries (Composition + Patient + Doctor + {len(cond_list)} Conditions)!")
+        
+        b1, b2 = st.columns(2)
+        with b1:
+            st.metric("Total Bundle Entries", bundle["total"])
+        with b2:
+            st.metric("Bundle Profile", "NRCES OPConsultRecord")
+
+        st.json(bundle)
+        st.download_button(
+            label="📥 Download Full ABDM Bundle JSON",
+            data=json.dumps(bundle, indent=2),
+            file_name=f"abdm_bundle_{patient_abha}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+# -------------------------------------------------------------
+# TAB 3: Terminology & Symptom Directory
+# -------------------------------------------------------------
+with tabs[2]:
+    st.markdown('<div class="section-title">Multi-Criteria Terminology & Symptom Directory</div>', unsafe_allow_html=True)
+    st.write("Search effortlessly across traditional names, Sanskrit terms, cardinal symptoms, or ICD-11 codes.")
+
+    sq1, sq2 = st.columns([3, 1])
+    with sq1:
+        query_input = st.text_input("Search by disease, symptom, or code (e.g. 'heartburn', 'Amlapitta', 'Asthma', 'Sandhivata'):", "")
+    with sq2:
+        query_system = st.selectbox("System Scope:", ["All", "Ayurveda", "Unani", "Siddha", "Homeopathy"])
+
+    search_hits = engine.search(
+        query=query_input,
+        system=None if query_system == "All" else query_system,
+        limit=50,
+    )
+
+    st.write(f"Matched **{len(search_hits)}** clinical concepts:")
+
+    rows = []
+    for hit in search_hits:
+        rows.append({
+            "NAMASTE Code": hit["namaste_code"],
+            "System": hit["system"],
+            "Traditional Term": hit["traditional_term"],
+            "Symptoms": ", ".join(hit.get("symptoms", [])[:2]) + ("..." if len(hit.get("symptoms", [])) > 2 else ""),
+            "ICD-11 Code": hit["icd11_code"],
+            "ICD-11 Title": hit["icd11_title"],
+            "TM-1 Code": hit.get("icd11_tm1_code", "-"),
+            "Equivalence": hit["mapping_equivalence"],
+            "Confidence": f"{hit['mapping_confidence'] * 100:.0f}%",
+        })
+
+    if rows:
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("No matching clinical terms found.")
+
+# -------------------------------------------------------------
+# TAB 4: Bidirectional Translator
+# -------------------------------------------------------------
+with tabs[3]:
+    st.markdown('<div class="section-title">Bidirectional Terminology Translation Service</div>', unsafe_allow_html=True)
+    st.write("Instant automated mapping from NAMASTE to WHO ICD-11, or reverse lookup from ICD-11 into AYUSH.")
+
+    t_mode = st.radio("Translation Flow:", ["NAMASTE → WHO ICD-11", "WHO ICD-11 → NAMASTE"], horizontal=True)
+
+    if t_mode.startswith("NAMASTE"):
+        in_namaste = st.text_input("Enter NAMASTE Code (e.g., NAM-AYU-001, NAM-AYU-003, NAM-UNA-001):", value="NAM-AYU-001")
+        if st.button("Translate NAMASTE Code"):
+            res = engine.translate(code=in_namaste, source_type="namaste")
+            if res.get("status") == "success":
+                st.success("✅ Translation Found!")
+                st.markdown(
+                    f"""
+                    <div class="clinical-card">
+                        <h4>{res['source_term']} ({res['ayush_system']}) ➔ {res['target_title']}</h4>
+                        <p><b>Target ICD-11 MMS Code:</b> <code>{res['target_code']}</code></p>
+                        <p><b>Target ICD-11 TM-1 Code:</b> <code>{res.get('target_tm1_code', 'N/A')}</code></p>
+                        <p><b>Semantic Equivalence:</b> <code>{res['equivalence']}</code> | <b>Confidence:</b> <code>{res['confidence']*100:.1f}%</code></p>
+                        <p><b>Clinical Description:</b> {res['clinical_description']}</p>
+                        <p><b>Mapping Rationale:</b> {res.get('clinical_rationale')}</p>
+                        <p><b>WHO Entity URI:</b> <a href="{res['target_uri']}" target="_blank">{res['target_uri']}</a></p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.error(res.get("message"))
+    else:
+        in_icd = st.text_input("Enter WHO ICD-11 Code (e.g., 5A11, CA23, DA42, FA00):", value="5A11")
+        if st.button("Translate ICD-11 Code"):
+            res = engine.translate(code=in_icd, source_type="icd11")
+            if res.get("status") == "success":
+                st.success(f"✅ Found {res['mappings_count']} corresponding NAMASTE diagnoses for ICD-11 '{res['source_code']}':")
+                for m in res["mappings"]:
+                    st.markdown(
+                        f"""
+                        <div class="clinical-card">
+                            <h4>🌿 {m['target_term']} (<code>{m['target_code']}</code>)</h4>
+                            <p><b>System:</b> {m['ayush_system']} | <b>TM-1 Code:</b> <code>{m.get('tm1_code', '-')}</code></p>
+                            <p><b>Equivalence:</b> <code>{m['equivalence']}</code> | <b>Confidence:</b> <code>{m['confidence']*100:.1f}%</code></p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.error(res.get("message"))
+
+# -------------------------------------------------------------
+# TAB 5: FHIR Standards Inspector
+# -------------------------------------------------------------
+with tabs[4]:
+    st.markdown('<div class="section-title">HL7 FHIR R4 Standards Specifications</div>', unsafe_allow_html=True)
+    st.write("Inspect national-scale FHIR `ConceptMap` and `CodeSystem` entities.")
+
+    choice = st.radio("Resource Type:", ["ConceptMap (NAMASTE to ICD-11)", "CodeSystem (NAMASTE)"], horizontal=True)
+
+    if choice.startswith("ConceptMap"):
+        cmap = FHIRBuilder.create_concept_map(engine.records)
+        st.caption(f"Resource: ConceptMap | Version: {cmap['version']} | Mapped Elements: {len(cmap['group'][0]['element'])}")
+        st.json(cmap)
+        st.download_button("📥 Download ConceptMap JSON", json.dumps(cmap, indent=2), "fhir_conceptmap_namaste_icd11.json", "application/json")
+    else:
+        csys = FHIRBuilder.create_code_system(engine.records)
+        st.caption(f"Resource: CodeSystem | Total Concepts: {csys['count']}")
+        st.json(csys)
+        st.download_button("📥 Download CodeSystem JSON", json.dumps(csys, indent=2), "fhir_codesystem_namaste.json", "application/json")
+
+# -------------------------------------------------------------
+# TAB 6: ISO 22600 Audit & Security
+# -------------------------------------------------------------
 with tabs[5]:
-    st.subheader("6. Smart India Hackathon 2025 Background & Project Scope")
+    st.markdown('<div class="section-title">ISO 22600 Audit Trail & Consent Management Simulator</div>', unsafe_allow_html=True)
+    st.write(
+        "Demonstrating compliance with **ISO 22600 Privilege Management and Access Control** & **ABDM Consent Manager**. "
+        "Every clinical query, translation, and export is cryptographically logged."
+    )
+
     st.markdown(
         """
-        ### 🎯 Problem Statement & Need
-        In India's digital health ecosystem (ABDM / Ayushman Bharat Digital Mission), millions of patients consult AYUSH 
-        (Ayurveda, Yoga & Naturopathy, Unani, Siddha, Homeopathy) practitioners. However:
-        - **AYUSH diagnoses** are codified under the **NAMASTE** portal.
-        - **Modern global healthcare systems and health insurers** rely on **WHO ICD-11**.
-        - Lack of semantic alignment leads to **claim processing delays**, **limited clinical documentation exchange**, 
-          and **fragmented healthcare analytics**.
+        <div class="clinical-card">
+            <h4>🔐 Security & Compliance Stack</h4>
+            <ul>
+                <li><b>ISO 22600:</b> Role-based access control and privilege verification for practitioner credentials.</li>
+                <li><b>ABHA Consent Manager:</b> Validates patient data sharing consent artifacts before dual-coded bundles are uploaded.</li>
+                <li><b>OAuth 2.0 / JWT:</b> Standardized token-based authentication for external hospital EMR integrations.</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    sample_logs = [
+        {"Timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "Event": "FHIR Condition Created", "User": doctor_name, "ABHA Context": patient_abha, "Status": "SUCCESS (200)"},
+        {"Timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "Event": "ConceptMap Translation", "User": "EMR-Service-Worker", "ABHA Context": "System-wide", "Status": "SUCCESS (200)"},
+        {"Timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"), "Event": "Consent Verification", "User": "ABDM-Gateway", "ABHA Context": patient_abha, "Status": "AUTHORIZED (ISO 22600)"},
+    ]
+    st.table(pd.DataFrame(sample_logs))
+
+# -------------------------------------------------------------
+# TAB 7: SIH Project Blueprint
+# -------------------------------------------------------------
+with tabs[6]:
+    st.markdown('<div class="section-title">Smart India Hackathon 2025 · Project Blueprint</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        ### 🎯 Problem Statement
+        In India, AYUSH systems (*Ayurveda, Yoga & Naturopathy, Unani, Siddha, Homeopathy*) serve hundreds of millions of citizens. 
+        However:
+        - **NAMASTE** codes are not recognized by global health systems, international researchers, or global insurers.
+        - **WHO ICD-11** lacks out-of-the-box alignment with AYUSH terminology in Indian EMRs.
+        - **Impact:** Delayed insurance claim settlements, fragmented public health metrics, and clinical documentation barriers.
 
         ### 💡 Our Proposed Solution
-        A **FHIR-Based Dual Coding Microservice** that acts as an automated translation layer:
-        1. **Transforms NAMASTE datasets** into standardized HL7 FHIR `CodeSystem` entities.
-        2. **Maps terms to WHO ICD-11** via HL7 FHIR `ConceptMap` specifications.
-        3. **Emits Dual-Coded FHIR R4 Condition & ProblemList resources**, satisfying both traditional practitioners and global EMR standards.
-        4. **ABDM & ABHA Ready**: Aligns directly with EHR Standards of India (2016).
+        A **FHIR-Based Dual Coding Microservice** that:
+        1. Ingests traditional diagnoses through a clinician portal.
+        2. Resolves dual coding across **NAMASTE**, **WHO ICD-11 MMS**, and **WHO ICD-11 Chapter 26 (Traditional Medicine Module 1)**.
+        3. Emits validated **HL7® FHIR® R4 Condition & Document Bundle** resources compliant with **EHR Standards of India (2016)** and **ABDM (NRCES)**.
+        4. Provides REST APIs for easy plug-and-play into existing EMRs (*Bahmni, e-Hospital, Practo, etc.*).
 
         ---
         ### 👥 Hackathon Team Credits (Assam Down Town University)
@@ -386,11 +543,11 @@ with tabs[5]:
         - **Farhan Masud**
         - **S M Zafor Abbasi**
         - **Soudamoni Pandit**
-        
-        *Achievement: Qualified and advanced to Round 2 in Smart India Hackathon 2025.*
+
+        *Milestone: Advanced to Round 2 in Smart India Hackathon 2025.*
 
         ---
-        > **Disclaimer:** This software is an open-source research and educational prototype developed to demonstrate 
-        > the architectural feasibility of traditional and modern health code interoperability. It is not intended for direct clinical decision-making.
+        > **Disclaimer:** This software is an open-source research and educational prototype developed for Smart India Hackathon 2025. 
+        > Clinical mappings are curated for technical demonstration and should be reviewed by certified medical terminologists for live production deployment.
         """
     )

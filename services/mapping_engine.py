@@ -1,6 +1,6 @@
 """
 Dual Coding Mapping Engine
-Provides fuzzy search, lookup, and bidirectional translation
+Provides fuzzy search, symptom matching, and bidirectional translation
 between NAMASTE (AYUSH) terminology and WHO ICD-11 classification.
 """
 
@@ -54,10 +54,10 @@ class MappingEngine:
         self,
         query: str = "",
         system: Optional[str] = None,
-        limit: int = 20,
+        limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """
-        Search entries across traditional term, English clinical description,
+        Search entries across traditional term, symptoms, clinical description,
         category, NAMASTE code, and ICD-11 title/code.
         """
         query = query.strip()
@@ -73,16 +73,16 @@ class MappingEngine:
         scored_results = []
 
         for r in filtered:
-            # Direct match check
-            searchable_text = f"{r['namaste_code']} {r['traditional_term']} {r['english_description']} {r['category']} {r['icd11_code']} {r['icd11_title']}".lower()
+            symptoms_str = " ".join(r.get("symptoms", []))
+            searchable_text = f"{r['namaste_code']} {r['traditional_term']} {r['english_description']} {symptoms_str} {r['category']} {r['icd11_code']} {r['icd11_title']}".lower()
 
             if HAS_RAPIDFUZZ:
-                # Fuzzy score computation
                 ratio_name = fuzz.partial_ratio(query_lower, r["traditional_term"].lower())
                 ratio_desc = fuzz.partial_ratio(query_lower, r["english_description"].lower())
-                ratio_code = 100 if query_lower in r["namaste_code"].lower() or query_lower in r["icd11_code"].lower() else 0
+                ratio_symp = fuzz.partial_ratio(query_lower, symptoms_str.lower())
+                ratio_code = 100 if (query_lower in r["namaste_code"].lower() or query_lower in r["icd11_code"].lower()) else 0
                 ratio_icd = fuzz.partial_ratio(query_lower, r["icd11_title"].lower())
-                score = max(ratio_name, ratio_desc, ratio_code, ratio_icd)
+                score = max(ratio_name, ratio_desc, ratio_symp, ratio_code, ratio_icd)
                 if score >= 45 or query_lower in searchable_text:
                     scored_results.append((score, r))
             else:
@@ -117,10 +117,13 @@ class MappingEngine:
                 "target_system": "ICD-11",
                 "target_code": entry["icd11_code"],
                 "target_title": entry["icd11_title"],
+                "target_tm1_code": entry.get("icd11_tm1_code"),
                 "target_uri": entry["icd11_uri"],
                 "equivalence": entry["mapping_equivalence"],
                 "confidence": entry["mapping_confidence"],
                 "clinical_description": entry["english_description"],
+                "clinical_rationale": entry.get("clinical_rationale"),
+                "symptoms": entry.get("symptoms", []),
             }
         elif source_type.lower() == "icd11":
             entries = self.get_by_icd11_code(code)
@@ -144,6 +147,7 @@ class MappingEngine:
                         "ayush_system": e["system"],
                         "equivalence": e["mapping_equivalence"],
                         "confidence": e["mapping_confidence"],
+                        "tm1_code": e.get("icd11_tm1_code"),
                     }
                     for e in entries
                 ],
@@ -161,9 +165,23 @@ class MappingEngine:
             s = r["system"]
             system_counts[s] = system_counts.get(s, 0) + 1
 
+        avg_confidence = (
+            sum(r.get("mapping_confidence", 0.9) for r in self.records) / len(self.records)
+            if self.records
+            else 0.0
+        )
+
         return {
             "total_records": len(self.records),
             "systems": system_counts,
+            "average_confidence_score": round(avg_confidence * 100, 2),
             "mapping_coverage_percentage": 100.0,
-            "standards_supported": ["FHIR R4", "NAMASTE AYUSH", "WHO ICD-11 MMS"],
+            "standards_supported": [
+                "HL7 FHIR Release 4",
+                "NAMASTE AYUSH (MoA, India)",
+                "WHO ICD-11 MMS",
+                "WHO ICD-11 Chapter 26 (TM-1)",
+                "EHR Standards of India (2016)",
+                "ABDM / NRCES Profile",
+            ],
         }
