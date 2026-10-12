@@ -1,6 +1,6 @@
 # AyurCode FHIR: Dual Coding Microservice for NAMASTE & ICD-11
 
-[![CI & Quality Assurance](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration/actions)
+[![CI & Quality Assurance](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration-sih2025/actions/workflows/ci.yml/badge.svg)](https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration-sih2025/actions)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-2.0-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.41-FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io)
@@ -118,8 +118,8 @@ flowchart TD
 
 ### 1. Clone & Setup Environment
 ```bash
-git clone https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration.git
-cd namaste-icd11-fhir-integration
+git clone https://github.com/atikurrahmanxm/namaste-icd11-fhir-integration-sih2025.git
+cd namaste-icd11-fhir-integration-sih2025
 
 # Optional: Create and activate virtual environment
 python -m venv venv
